@@ -1,0 +1,6 @@
+artifact_location: mlflow-artifacts:/321069748419442453
+creation_time: 1711197684286
+experiment_id: '321069748419442453'
+last_update_time: 1711197684286
+lifecycle_stage: active
+name: Brain Tumor Classification

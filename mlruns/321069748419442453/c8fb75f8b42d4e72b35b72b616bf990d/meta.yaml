@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/321069748419442453/c8fb75f8b42d4e72b35b72b616bf990d/artifacts
+end_time: 1712405805853
+entry_point_name: ''
+experiment_id: '321069748419442453'
+lifecycle_stage: active
+run_id: c8fb75f8b42d4e72b35b72b616bf990d
+run_name: wise-mare-455
+run_uuid: c8fb75f8b42d4e72b35b72b616bf990d
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1712405793945
+status: 3
+tags: []
+user_id: karaca

@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/671654476550545871/680ddda016ca47e7ba1909192e723549/artifacts
+end_time: 1712407220773
+entry_point_name: ''
+experiment_id: '671654476550545871'
+lifecycle_stage: active
+run_id: 680ddda016ca47e7ba1909192e723549
+run_name: spiffy-rook-344
+run_uuid: 680ddda016ca47e7ba1909192e723549
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1712407207242
+status: 3
+tags: []
+user_id: karaca
