@@ -1,4 +1,5 @@
 .venv
+mlruns
 brain-tumor
 mlruns
 mlartifacts
