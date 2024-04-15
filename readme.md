@@ -3,6 +3,8 @@
 ## Projektrahmen
 Dieses Projekt wurde im Rahmen der Vorlesung Data Exploration Project an der DHBW Stuttgart im Studiengang Wirtschaftsinformatik erstellt. Es befasst sich mit der Entwicklung eines Modells zur Erkennung von Gehirntumoren in Bildern mithilfe eines Convolutional Neural Network (CNN). 
 
+Das Projekt ist unter folgendem Link auf GitHub verfügbar: [https://github.com/Mehmet1700/DataExplorationProject]
+
 Immatrikulationsnummer: 9948958
 
 ## Problemstellung

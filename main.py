@@ -2,10 +2,10 @@
 # # Dataexploration Project (Mehmet Karaca)
 # 
 # ## Problem
-# Wir haben einen Datensatz zu Gehirntumoren mit den dazugehörigen Bildern. Wir möchten ein Modell entwickeln, das die Bilder analysiert und die Tumore erkennt. Anwendungsgebiet ist die Medizin, um die Diagnose von Gehirntumoren zu unterstützen.
+# Wir haben einen Datensatz zu Gehirntumoren mit den dazugehörigen Bildern. Wir möchten ein Modell entwickeln, das die Bilder analysiert und die Tumore erkennt. Anwendungsgebiet ist beispielsweise die Medizin, um die Diagnose von Gehirntumoren zu unterstützen.
 # 
 # ## Daten
-# Die Daten stammen aus Kaggle(https://www.kaggle.com/datasets/jakeshbohaju/brain-tumor/data?select=Brain+Tumor.csv). Der Datensatz enthält eine Vielzahl von Features, allerdings sind für uns nur die Zuordnung zu den Bildern und die Class (Tumor oder kein Tumor) relevant. Der Grund ist, dass wir unser Modell auf den Bildern trainieren und testen möchten und die anderen Features nicht relevant sind. Die Bilder sind in einem separaten Ordner abgelegt. 
+# Die Daten stammen aus Kaggle(https://www.kaggle.com/datasets/jakeshbohaju/brain-tumor/data?select=Brain+Tumor.csv). Der Datensatz enthält eine Vielzahl von Features, allerdings sind für uns nur die Zuordnung zu den Bildern und die Class (Tumor oder kein Tumor) relevant. Der Grund ist, dass wir unser Modell auf den Bildern trainieren und testen möchten und die anderen Features nicht benötigt werden. Die Bilder sind in einem separaten Ordner abgelegt. 
 # 
 # ## Lösung
 # Wir werden ein Modell entwickeln, das die Bilder analysiert und die Tumore erkennt. Dazu werden wir ein Convolutional Neural Network (CNN) verwenden. CNNs sind speziell für die Verarbeitung von Bildern geeignet. Wir werden das Modell auf den Trainingsdaten trainieren und auf den Testdaten testen. Anschließend werden wir die Performance des Modells evaluieren.
@@ -15,7 +15,7 @@
 # 
 
 # %% [markdown]
-# Laden der Bibliotheken
+# ## Laden der Bibliotheken
 
 # %%
 import os
@@ -31,22 +31,24 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 from sklearn.utils import shuffle
-from sklearn.metrics import accuracy_score , precision_score , recall_score , f1_score 
+from sklearn.metrics import accuracy_score , precision_score , recall_score , f1_score , confusion_matrix
+from sklearn.dummy import DummyClassifier
 from random import uniform, choice
 import mlflow
 from mlflow import log_metric, log_param
 from mlflow.models import infer_signature
+import subprocess
 
 
 # %% [markdown]
-# Einlesen der CSV Datei und Anzeige der ersten 5 Zeilen und weitere Analysen
+# ## Einlesen der CSV Datei und Anzeige der ersten 5 Zeilen und weitere Analysen
 
 # %%
 # Path to the CSV file
 csv_file = "brain-tumor/Brain_Tumor.csv"
 
 # Load the Image and Class columns from the CSV file to reduce the number of data records per class.
-#Only the Image and Class columns are loaded, as the other columns are not relevant for the analysis. 
+# Only the Image and Class columns are loaded, as the other columns are not relevant for the analysis. 
 data = pd.read_csv(csv_file)[['Image', 'Class']] 
 
 # Check the first lines of the data set
@@ -61,7 +63,7 @@ print(data.isnull().sum())
 print("\nGesamtanzahl der Datensätze:", len(data))
 
 # %% [markdown]
-# Klassenverteilung überprüfen
+# ## Klassenverteilung überprüfen
 
 # %%
 # Check class distribution
@@ -90,7 +92,8 @@ print(stat_summary)
 
 
 # %% [markdown]
-# Wie man an den Daten und Grafiken erkennen kann, sind die Daten sauber und es gibt keine fehlenden Werte. Die Klassenverteilung ist auch relativ ausgeglichen, allerdings gibt es mehr Bilder ohne Tumor als mit Tumor. Dennoch werden wir die Klassenverteilung anpassen, um ein besseres Modell zu trainieren. 
+# ## Erster Eindruck der Daten
+# Wie man an den Daten und Grafiken erkennen kann, sind die Daten sauber und es gibt keine fehlenden Werte. Die Klassenverteilung ist auch relativ ausgeglichen, allerdings gibt es mehr Bilder ohne Tumor als mit Tumor. Dennoch werden wir die Klassenverteilung verbessern, um ein besseres Modell zu erhalten.
 # 
 # ## Daten vorbereiten
 # Wir werden die Daten vorbereiten, indem wir die Bilder laden und die Klassenverteilung anpassen. Dazu werden wir die Daten in Trainings-, Validierungs- und Testdaten aufteilen. Die Bilder werden in ein Array umgewandelt und normalisiert. Die Klassenverteilung wird angepasst, indem wir die Anzahl der Bilder mit Tumor erhöhen aber auch die Form anpassen. Die Schritte heißen Data Augmentation und Data Balancing (oversampling / undersampling).
@@ -190,12 +193,24 @@ print("Klasse 0:", len(train_data['0']))
 print("Klasse 1:", len(train_data['1']))
 print("Gesamtanzahl der Bilder:", len(train_data['0']) + len(train_data['1']))
 
-#We have split the data and now have a dictionary containing the images in folders "0" and "1".
-#The same applies to the validation and test data.
 
+# Check the number of images in the folders "0" and "1" in the validation data
+print("\nAnzahl der Bilder in den Validierungsdaten:")
+print("Klasse 0:", len(val_data['0']))
+print("Klasse 1:", len(val_data['1']))
+print("Gesamtanzahl der Bilder:", len(val_data['0']) + len(val_data['1']))
+
+# Check the number of images in the folders "0" and "1" in the test data
+print("\nAnzahl der Bilder in den Testdaten:")
+print("Klasse 0:", len(test_data['0']))
+print("Klasse 1:", len(test_data['1']))
+print("Gesamtanzahl der Bilder:", len(test_data['0']) + len(test_data['1']))
+
+#We have split the data and now have a dictionary containing the images in folders "0" and "1".
 
 # %% [markdown]
-# Im vorherigen Schritt hatten wir nur die Bildnamen aufgeteilt, allerdings benötigen wir die vollständigen Pfade zu den Bildern. Dazu werden wir die Bildnamen mit den Pfaden zu den Bildern verknüpfen. Diese werden in die entsprechenden Ordner aufgeteilt. 
+# ## Verknüpfung der Bildnamen mit den Pfaden
+# Im vorherigen Schritt hatten wir nur die Bildnamen aufgeteilt, allerdings benötigen wir die vollständigen Pfade zu den Bildern. Dazu werden wir die Bildnamen mit den Pfaden zu den Bildern verknüpfen. Diese werden in die entsprechenden Ordner aufgeteilt. Außerdem werden wir das Format der Bilder überprüfen, um sicherzustellen, dass alle Bilder das gleiche Format haben.
 
 # %%
 #Analyze the images in BrainTumorPics for the number of pixels and color channels
@@ -259,6 +274,8 @@ print("Klasse 0:", len(os.listdir('brain-tumor/model/test/0')))
 print("Klasse 1:", len(os.listdir('brain-tumor/model/test/1')))
 
 
+# %% [markdown]
+# ## Anzeigen einer zufälligen Auswahl von Bildern
 
 # %%
 # Display the first 5 images from the training folder "0" and "1"
@@ -282,6 +299,7 @@ for i, ax in enumerate(axes):
     ax.axis('off') # Deactivate axis labels to display only the images
 
 # %% [markdown]
+# ## Data Balancing
 # Im nächsten Schritt wird Oversampling durchgeführt, um die Klassenverteilung anzupassen. Dazu werden wir die Anzahl der Bilder mit Tumor erhöhen für den Trainingsdatensatz. Für den Validierungs- und Testdatensatz wird keine Anpassung vorgenommen, da wir die Performance des Modells auf unveränderten Daten testen möchten. Die Klasse ohne Tumor hat 1822 Bilder und die Klasse mit Tumor hat 1187 Bilder. Wir werden die Anzahl der Bilder mit Tumor auf 1822 erhöhen.
 
 # %%
@@ -308,6 +326,7 @@ print("Gesamtanzahl der Bilder nach dem Oversampling:", len(os.listdir('brain-tu
 
 
 # %% [markdown]
+# ## Data Augmentation 
 # Im nächsten schritt wird Datenaugmentierung durchgeführt, um die Anzahl der Bilder zu erhöhen und das Modell zu trainieren. Overfitting zu vermeiden und die Leistung des Modells zu verbessern. Die Bilder werden gedreht, verschoben, gezoomt und horizontal gespiegelt.
 
 # %%
@@ -367,14 +386,14 @@ print("Anzahl der Trainingsbatches:", len(train_batches))
 print("Anzahl der Validierungsbatches:", len(val_batches))
 
 # %% [markdown]
-# Trainieren des Modells mit den Trainingsdaten und Validierungsdaten.
+# ## Data Training
+# Trainieren des Modells mit den Trainingsdaten und Validierungsdaten. Als Modell verwenden wir ein Convolutional Neural Network (CNN). Das Modell wird auf den Trainingsdaten trainiert und auf den Validierungsdaten getestet. Die Performance des Modells wird anhand der Genauigkeit und des Verlustes bewertet. Das Modell ist MobileNetV2, das auf den Bildern trainiert wird. MobileNetV2 ist ein vortrainiertes Modell, das speziell für mobile Geräte entwickelt wurde. Es ist leichtgewichtig und hat eine hohe Genauigkeit. Bei der Recherche wurde dieses Modell empfhohlen. Außerdem wurden mehrere Modelle getestet und MobileNetV2 hat die beste Performance erzielt nach nur wenigen Epochen.
 
 # %%
 base_model = tf.keras.applications.MobileNetV2(input_shape=(240, 240, 3), include_top=False, weights='imagenet')
 
 #Freeze the weights of the base model
 base_model.trainable = False
-
 
 last_output = base_model.output
 num_trainable_params = sum([w.shape.num_elements() for w in base_model.trainable_weights])
@@ -383,9 +402,8 @@ print("Anzahl der trainierbaren Parameter:", num_trainable_params)
 print("Das vortrainierte Modell hat den Typ: ", type(base_model))
 
 
-
 # %% [markdown]
-# Bauen des Neuronalen Netzes (Convolutional Neural Network)
+# ## Bauen des Neuronalen Netzes (Convolutional Neural Network) 
 
 # %%
 # Function for transfer learning with customizable dense units and dropout rate
@@ -424,6 +442,9 @@ model.compile(optimizer= tf.keras.optimizers.legacy.Adam(learning_rate=0.0001/10
 #The patience is set to 3, which means that the training is stopped when the accuracy stops increasing for 3 epochs.
 early_stopping = keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3)
 
+# %% [markdown]
+# ## Modell trainieren und validieren 
+
 # %%
 #Training the model
 #The model is trained with the training data and the accuracy is checked with the validation data.
@@ -461,11 +482,28 @@ plot_metrics(history)
 # 95/95 [==============================] - 39s 408ms/step - loss: 0.3780 - accuracy: 0.8401 - val_loss: 0.4467 - val_accuracy: 0.7872
 
 # %% [markdown]
+# ## Modell evaluieren
 # Implementieren des ML Lifecycle Management Tools MLflow, um die Experimente zu verfolgen und die Modelle zu verwalten. Dieses Tool wird verwendet, um die Modelle zu speichern, zu laden und zu verfolgen. Hier werden die Daten aus der History des Modells entnommen und in MLflow gespeichert.
 
 # %%
-#Define the MLflow tracking URI
-mlflow.set_tracking_uri("http://127.0.0.1:5000")
+# Command to start the MLFLow-Server. Using subprocess to run the command. 
+# Otherwise you have to start the server in a separate terminal manually.
+command = "mlflow server --host 127.0.0.1 --port 5001"
+
+# Start the Server in the Background
+process = subprocess.Popen(command, shell=True)
+
+#If there is already a process on the port, starting the server will fail.
+
+# If you want to stop the MLflow-Server, you have to kill the process.
+# Otherwise the server will run in the background.
+
+# %% [markdown]
+# 
+
+# %%
+"""#Define the MLflow tracking URI
+mlflow.set_tracking_uri("http://127.0.0.1:5001")
 
 #Start an MLflow experiment
 mlflow.set_experiment("Brain tumor classification")
@@ -473,15 +511,23 @@ mlflow.set_experiment("Brain tumor classification")
 #Logging the model, hyperparameters and metrics in MLflow
 #Start an MLflow run
 with mlflow.start_run():
+    # Define hyperparameters
+    density_units = 512
+    dropout_rate = 0.5
+
     #Logging the hyperparameters
-    log_param("learning_rate", 0.0001/10)
-    log_param("epochs", 10)
-    log_param("batch_size", 32)
+    mlflow.log_param("learning_rate", 0.0001/10)
+    mlflow.log_param("epochs", 10)
+    mlflow.log_param("batch_size", 32)
+    mlflow.log_param("density_units", density_units)
+    mlflow.log_param("dropout_rate", dropout_rate)
+    
     #Logging the metrics
-    log_metric("train_accuracy", history.history['accuracy'][-1])
-    log_metric("value_accuracy", history.history['val_accuracy'][-1])
-    log_metric("train_loss", history.history['loss'][-1])
-    log_metric("val_loss", history.history['val_loss'][-1])
+    mlflow.log_metric("train_accuracy", history.history['accuracy'][-1])
+    mlflow.log_metric("value_accuracy", history.history['val_accuracy'][-1])
+    mlflow.log_metric("train_loss", history.history['loss'][-1])
+    mlflow.log_metric("val_loss", history.history['val_loss'][-1])
+
     #Create a tag to identify the model
     mlflow.set_tag("model", "MobileNetV2")
     #Add model signature
@@ -490,12 +536,15 @@ with mlflow.start_run():
     mlflow.keras.log_model(model, "model", signature=signature)
     #end the MLflow run
     mlflow.end_run()
-
+    """
 
 # %% [markdown]
+# ## Hyperparameter Tuning mit MLflow
 # Nun haben wir eine Iteration mit bestimmten Parameter durchgeführt. Nun möchten wir Hyperparameter Tuning durchführen, um die besten Parameter zu finden. Hierzu werden wir MLflow verwenden, um die Experimente zu verfolgen und die Modelle zu verwalten.
 
 # %%
+""" Falls dies zu testzwecken ausgeführt werden soll, dann müssen die Kommentare entfernt werden. 
+
 # Function for hyperparameter tuning
 def hyperparameter_tuning(learning_rate, epochs, batch_size, dense_units, dropout_rate):
     # Create the model
@@ -511,7 +560,7 @@ def hyperparameter_tuning(learning_rate, epochs, batch_size, dense_units, dropou
     # Start an MLflow run
     with mlflow.start_run(experiment_name="Hyperparameter Tuning: Brain Tumor Classification"):
         # Log the hyperparameters
-        log_param("lern_rate", lern_rate)
+        log_param("learning_rate", learning_rate)
         log_param("epochs", epochs)
         log_param("batch_size", batch_size)
         log_param("density_units", density_units)
@@ -552,10 +601,16 @@ for _ in range(num_runs):
     # End the MLflow run
     mlflow.end_run()
 
+
+"""
+
 # %% [markdown]
+# ## Testen des Modells und Evaluierung der Performance anhand von Metriken und ungesehenen Daten
 # Das Hyperparameter Tuning kann eine weile dauern, da die vielen Kombinationen ausprobiert werden, um die besten Parameter zu finden. Da wir mit den Parametern aus dem vorherigen Schritt einen guten Wert erreicht haben, werden wir die Parameter nicht ändern. 
 # 
-# Nun können wir das trainierte Modell auf den Testdaten testen und die Performance des Modells evaluieren. Dazu werden wir die Metriken Accuracy, Precision, Recall und F1-Score verwenden. Die Metriken geben uns Aufschluss darüber, wie gut das Modell die Tumore erkennt.
+# Nun können wir das trainierte Modell auf den Testdaten testen und die Performance des Modells evaluieren. Dazu werden wir die Metriken Accuracy, Precision, Recall, Specificity und F1-Score verwenden. Die Metriken geben uns Aufschluss darüber, wie gut das Modell die Tumore erkennt.
+# 
+# Wie man an den Metriken erkennen kann, hat das Modell eine solide Performance. Eine Verbesserung der Performance könnte durch weitere Optimierung der Hyperparameter oder durch die Verwendung eines anderen Modells erreicht werden. Dennoch ist das Modell bereits in der Lage, die Tumore zu erkennen und sollte für den vorliegenden Rahmen ausreichen. 
 
 # %%
 #Testing the model with the test data for the metrics Accuracy, Precision, Recall and F1-Score
@@ -563,16 +618,19 @@ for _ in range(num_runs):
 #Load the test data
 test_batches = create_data_batches(val_datagen, 'brain-tumor/model/test/', 32)
 
-
 #Predictions on the test data
 predictions = model.predict(test_batches)
 
 # Convert the continuous predictions into binary predictions (0 or 1)
 binary_predictions = (predictions > 0.5).astype(int)
 
+# Create a confusion matrix to evaluate the model performance
+cm = confusion_matrix(test_batches.classes, binary_predictions)
+
 # Calculate the metrics
 accuracy = accuracy_score(test_batches.classes, binary_predictions)
 precision = precision_score(test_batches.classes, binary_predictions)
+specificity = cm[0, 0] / (cm[0, 0] + cm[0, 1])
 recall = recall_score(test_batches.classes, binary_predictions)
 f1 = f1_score(test_batches.classes, binary_predictions)
 
@@ -580,10 +638,88 @@ f1 = f1_score(test_batches.classes, binary_predictions)
 print("Genauigkeit:", accuracy)
 print("Präzision:", precision)
 print("Recall:", recall)
+print("Spezifität:", specificity)
 print("F1-Score:", f1)
+
+# %% [markdown]
+# Genauigkeit (Accuracy): Die Genauigkeit des Modells beträgt 55,97%. Dies bedeutet, dass das Modell ungefähr 56% der Gehirntumore korrekt identifiziert hat. Diese Metrik allein gibt jedoch nicht das vollständige Bild, da die Genauigkeit auch von der Anzahl der falsch negativen und falsch positiven Vorhersagen beeinflusst wird.
+# 
+# Präzision (Precision): Die Präzision beträgt 65,67%. Dies bedeutet, dass von allen vom Modell als positiv identifizierten Fällen etwa 66% tatsächlich Gehirntumore waren. Eine hohe Präzision ist wichtig, um sicherzustellen, dass die positiven Vorhersagen des Modells zuverlässig sind und nicht zu viele falsch positive Ergebnisse liefert.
+# 
+# Recall (Recall): Der Recall beträgt 64,02%. Dies bedeutet, dass das Modell etwa 64% der tatsächlich vorhandenen Gehirntumore korrekt erkannt hat. Ein hoher Recall ist wichtig, um sicherzustellen, dass das Modell nicht zu viele Gehirntumore übersieht und eine hohe Sensitivität aufweist.
+# 
+# Spezifität (Specificity): Die Spezifität beträgt 42,03%. Dies bedeutet, dass das Modell etwa 42% der tatsächlich negativen Fälle korrekt als negativ identifiziert hat. Eine hohe Spezifität ist wichtig, um sicherzustellen, dass normale Gehirnbilder nicht fälschlicherweise als Tumore identifiziert werden.
+# 
+# F1-Score (F1-Score): Der F1-Score beträgt 64,83%. Dieser Wert ist das harmonische Mittel zwischen Präzision und Recall und bietet eine ausgewogene Bewertung zwischen beiden. Ein hoher F1-Score deutet darauf hin, dass das Modell sowohl präzise als auch sensitiv ist.
+# 
+# In Bezug auf die Erkennung von Gehirntumoren, bei der das Ziel darin besteht, sicherzustellen, dass keine Tumore übersehen werden, ist die Sensitivität (Recall) die wichtigste Metrik.
+# 
+# Die Sensitivität misst den Anteil der tatsächlich positiven Fälle, die vom Modell korrekt als positiv identifiziert wurden. Ein hoher Sensitivitätswert bedeutet, dass das Modell eine geringe Anzahl von falsch negativen Ergebnissen produziert, d.h., es übersieht nur wenige echte Tumore.
+# 
+# In diesem Fall ist es entscheidend, dass das Modell eine hohe Sensitivität aufweist, um sicherzustellen, dass keine Gehirntumore unentdeckt bleiben. Selbst wenn das Modell gelegentlich normale Gehirnbilder als Tumore identifiziert (was zu falsch positiven Ergebnissen führt), ist es weniger problematisch, solange kein Gehirntumor übersehen wird.
+# 
+# Daher ist die Maximierung der Sensitivität von entscheidender Bedeutung, um sicherzustellen, dass das Modell möglichst keine falsch negativen Vorhersagen macht und die Erkennung von Gehirntumoren optimiert wird.
+# 
+# Zusammenfassend lässt sich sagen, dass das Modell in der Lage ist, Gehirntumore mit einer angemessenen Genauigkeit, Präzision, Recall, F1-Score, Sensitivität und Spezifität zu erkennen. Es ist jedoch wichtig zu beachten, dass diese Metriken kontinuierlich verbessert werden sollten, um die Leistung des Modells weiter zu optimieren und die Diagnose von Gehirntumoren zu 
+
+# %% [markdown]
+# ## Vergleich des Modells mit einem Dummy Klassifikator
+# Um die Performance des Modells besser einschätzen zu können, vergleichen wir es mit einem Dummy-Klassifikator. Der Dummy-Klassifikator ist ein einfaches Modell, das zufällige Vorhersagen trifft und als Baseline dient. Wir vergleichen die Metriken des Modells mit denen des Dummy-Klassifikators, um zu sehen, wie gut das Modell im Vergleich zu einem zufälligen Modell abs
+
+# %%
+# Function for extracting a random subset from the data stream
+def extract_random_subset(generator, subset_size=1000):
+    images = []
+    labels = []
+    for _ in range(subset_size):
+        batch = next(generator)
+        batch_images, batch_labels = batch
+        images.extend(batch_images)
+        labels.extend(batch_labels)
+    return np.array(images), np.array(labels)
+
+# Extract data (random subset)
+dummy_train_images, dummy_train_labels = extract_random_subset(train_batches, subset_size=100)
+dummy_test_images, dummy_test_labels = extract_random_subset(test_batches, subset_size=50)
+
+# Dummy classifier with "uniform" strategy
+dummy_classifier = DummyClassifier(strategy="uniform")
+
+# Train the dummy classifier
+dummy_classifier.fit(dummy_train_images.reshape(dummy_train_images.shape[0], -1), dummy_train_labels)
+
+# Predictions of the dummy classifier on the test data
+dummy_predictions = dummy_classifier.predict(dummy_test_images.reshape(dummy_test_images.shape[0], -1))
+
+# Metrics for the dummy classifier
+dummy_accuracy = accuracy_score(dummy_test_labels, dummy_predictions)
+dummy_precision = precision_score(dummy_test_labels, dummy_predictions)
+dummy_recall = recall_score(dummy_test_labels, dummy_predictions)
+dummy_f1 = f1_score(dummy_test_labels, dummy_predictions)
+
+# Output the metrics
+print("Dummy Klassifikator Metriken:")
+print("Accuracy:", dummy_accuracy)
+print("Precision:", dummy_precision)
+print("Recall:", dummy_recall)
+print("F1 Score:", dummy_f1)
+
+# Difference between the metrics of the dummy classifier and the model
+accuracy_diff = accuracy - dummy_accuracy
+precision_diff = precision - dummy_precision
+recall_diff = recall - dummy_recall
+f1_diff = f1 - dummy_f1
+
+# Output the differences
+print("Differenzen der Metriken zwischen Modell und Dummy")
+print("Accuracy:", accuracy_diff)
+print("Precision:", precision_diff)
+print("Recall:", recall_diff)
+print("F1 Score:", f1_diff)
 
 
 # %% [markdown]
+# ## Nutzung des Modells für einzelne Bilder
 # Um einzelne Bilder zu testen, kann folgende Funktion verwendet werden:
 
 # %%
@@ -603,9 +739,9 @@ def predict_class(model, image_path, threshold=0.5):
     # Return the prediction
     return predicted_class, probability
 
-# Testen des Modells mit einem Bild aus den Testdaten
-# Pfad zum Bild
-image_path = 'brain-tumor/model/test/1/Image3708.jpg'
+# Testing the model with an image from the test data
+# Path to the image
+image_path = 'brain-tumor/model/test/0/Image3759.jpg'
 # Predict the class of the image
 predicted_class, probability = predict_class(model, image_path)
 # Display the prediction
